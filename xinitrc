@@ -1,0 +1,5 @@
+xterm &
+xclock &
+
+exec ./wm
+
