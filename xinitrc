@@ -1,3 +1,3 @@
-xterm &
+
 
 exec ./wm

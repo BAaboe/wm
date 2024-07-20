@@ -74,6 +74,8 @@ void setup(){
 	XFree(top_level_windows);
 
 	XUngrabServer(wm.dsp);
+
+	system(STARTUP_SCRIPT);
 }
 
 void run(){
