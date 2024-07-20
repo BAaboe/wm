@@ -1,5 +1,6 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include <X11/cursorfont.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +44,7 @@ void setup(){
 
 	XSetErrorHandler(&OnWMDetected);
 	XSelectInput(wm.dsp, wm.root, SubstructureRedirectMask | SubstructureNotifyMask);
-	XSync(wm.dsp, false);
+	//XSync(wm.dsp, false);
 
 	if(wm_deteced){
 		printf("Error: detected another window manager on display\n");
@@ -52,36 +53,50 @@ void setup(){
 
 	XSetErrorHandler(&OnXError);
 
-	XGrabServer(wm.dsp);
+	//Reparent and frame exsiting windows
+	//XGrabServer(wm.dsp);
 
-	Window returned_root, returned_parent;
-	Window* top_level_windows;
-	unsigned int num_top_level_windows;
+	//Window returned_root, returned_parent;
+	//Window* top_level_windows;
+	//unsigned int num_top_level_windows;
 
-	if(!XQueryTree(
-			wm.dsp,
-			wm.root,
-			&returned_root,
-			&returned_parent,
-			&top_level_windows,
-			&num_top_level_windows)){return;}
-	if(returned_root != wm.root){return;}
+	//if(!XQueryTree(
+	//		wm.dsp,
+	//		wm.root,
+	//		&returned_root,
+	//		&returned_parent,
+	//		&top_level_windows,
+	//		&num_top_level_windows)){return;}
+	//if(returned_root != wm.root){return;}
 
-	for(unsigned int i = 0; i<num_top_level_windows; i++){
-		Frame(top_level_windows[i], true);
-	}
+	//for(unsigned int i = 0; i<num_top_level_windows; i++){
+	//	Frame(top_level_windows[i], true);
+	//}
 
-	XFree(top_level_windows);
+	//XFree(top_level_windows);
 
-	XUngrabServer(wm.dsp);
+	//XUngrabServer(wm.dsp);
+	
+	KeySym ks = XStringToKeysym("a");
+	KeyCode kc = XKeysymToKeycode(wm.dsp, ks);
 
-	system(STARTUP_SCRIPT);
+	int code = XGrabKey(wm.dsp, kc, ShiftMask, wm.root, 0,  GrabModeAsync, GrabModeAsync);
+	printf("%d\n", code==AlreadyGrabbed);
+	XSync(wm.dsp, 0);
+
+	//Displaying cursor
+	Cursor cursor = XCreateFontCursor(wm.dsp, XC_left_ptr);
+	XDefineCursor(wm.dsp, wm.root, cursor);
+	XSync(wm.dsp, 0);
+
+	//Startup script for startup programs
+	//system(STARTUP_SCRIPT);
 }
 
 void run(){
 	
+	XEvent e;
 	while(1){
-		XEvent e;
 		XNextEvent(wm.dsp, &e);
 		
 		switch(e.type){
@@ -106,7 +121,14 @@ void run(){
 			case UnmapNotify:
 				OnUnmapNotify(&e.xunmap);
 				break;
+			case ButtonPress:
+				OnButtonPressed(&e.xbutton);
+				break;
+			case KeyPress:
+				printf("keypressed\n");
+				break;
 		}
+
 	}
 }
 
@@ -162,6 +184,9 @@ void OnUnmapNotify(const XUnmapEvent* e){
 	UnFrame(e->window);	
 }
 
+void OnButtonPressed(const XButtonPressedEvent *e) {
+	printf("ButtonPressed\n");
+}
 
 void Frame(Window w, Bool before_wm){
 	XWindowAttributes x_w_attrs;
@@ -193,6 +218,7 @@ void Frame(Window w, Bool before_wm){
 	XMapWindow(wm.dsp, frame);
 
 	addClient(clients_, w, frame);
+
 }
 
 void UnFrame(Window w){

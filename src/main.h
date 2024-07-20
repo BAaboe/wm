@@ -26,5 +26,7 @@ void OnMapRequest(const XMapRequestEvent* e);
 void OnMapNotify(const XMapEvent* e);
 void OnUnmapNotify(const XUnmapEvent* e);
 
+void OnButtonPressed(const XButtonPressedEvent* e);
+
 void Frame(Window w, Bool before_wm);
 void UnFrame(Window w);
