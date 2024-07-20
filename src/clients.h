@@ -1,9 +1,12 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
 
+#define MIN_NUM_CAP 1 
+
 typedef struct {
 	Window frame;
 	Window window;
+	Bool ok;
 }client;
 
 typedef struct {
@@ -16,8 +19,12 @@ typedef struct {
 void initArray(dynamic_array** arr_ptr);
 void freeArray(dynamic_array* arr_ptr);
 
-void addClient(dynamic_array* arr_ptr, client client_);
-client getClientFromIndex(dynamic_array* arr_ptr, int index);
-void deleteClient(dynamic_array* arr_ptr, int index);
+void addClientFromStruct(dynamic_array* arr_ptr, client client_);
+int getClientFromIndex(dynamic_array* arr_ptr, int index, client* returnClient);
+void deleteClientFromIndex(dynamic_array* arr_ptr, int index);
 
-client getClient(dynamic_array* arr_ptr, Window window);
+int getFrame(dynamic_array* arr_ptr, Window window, Window* returnFrame);
+void addClient(dynamic_array* arr_ptr, Window window, Window frame);
+void deleteFrame(dynamic_array *arr_ptr, Window window);
+int containsClient(dynamic_array* arr_ptr, Window window);
+int indexClient(dynamic_array *arr_ptr, Window window);

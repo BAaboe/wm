@@ -1,5 +1,3 @@
 xterm &
-xclock &
 
 exec ./wm
-

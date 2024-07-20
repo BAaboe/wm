@@ -13,8 +13,8 @@ void initArray(dynamic_array **arr_ptr){
 	}
 
 	container->size = 0;
-	container->capacity = 0;
-	container->array = (client*)malloc(container->capacity*sizeof(client*));
+	container->capacity = MIN_NUM_CAP;
+	container->array = (client*)malloc(container->capacity*sizeof(client));
 
 	if(!container->array){
 		printf("Malloc failes\n");
@@ -28,35 +28,29 @@ void freeArray(dynamic_array *arr_ptr){
 	free(arr_ptr);
 }
 
-void addClient(dynamic_array *arr_ptr, client client_){
-	arr_ptr->capacity++;
-	arr_ptr->array = (client*)realloc(arr_ptr->array, arr_ptr->capacity*sizeof(client*));
+void addClientFromStruct(dynamic_array *arr_ptr, client client_){
+	if(arr_ptr->capacity == arr_ptr->size){
+		arr_ptr->capacity <<= 1;
+		arr_ptr->array = (client*)realloc(arr_ptr->array, arr_ptr->capacity*sizeof(client));
+		if(arr_ptr->array == NULL){
+			printf("Failed allocating memmory");
+			exit(EXIT_FAILURE);
+		}
+	}
 
 	arr_ptr->array[arr_ptr->size++] = client_;
 }
 
-client getClientFromIndex(dynamic_array *arr_ptr, int index){
+int getClientFromIndex(dynamic_array *arr_ptr, int index, client* returnClient){
 	if(index >= arr_ptr->capacity){
 		printf("Out of bounds\n");
-		client client_;
-		return client_;
+		return 1;
 	}
-	return arr_ptr->array[index];
+	*returnClient = arr_ptr->array[index];
+	return 0; 
 }
 
-client getClient(dynamic_array *arr_ptr, Window window){
-	client client_;
-	for(int i = 0; i < arr_ptr->size; i++){
-		client_ = getClientFromIndex(arr_ptr, i);
-		if(client_.window == window){
-			return client_;
-		}
-	}
-	client empty;
-	return empty;
-}
-
-void deleteClient(dynamic_array* arr_ptr, int index){
+void deleteClientFromIndex(dynamic_array* arr_ptr, int index){
 	if(index >= arr_ptr->size){
 		printf("Out of bounds\n");
 		return;
@@ -66,7 +60,52 @@ void deleteClient(dynamic_array* arr_ptr, int index){
 		arr_ptr->array[i] = arr_ptr->array[i + 1];
 	}
 	
-	arr_ptr->capacity--;
-	arr_ptr->array = (client*)realloc(arr_ptr->array, arr_ptr->capacity*sizeof(client*));
+	if(arr_ptr->capacity >> 1 == arr_ptr->size){
+		if(arr_ptr->capacity > MIN_NUM_CAP){
+			arr_ptr->capacity >>= 1;
+
+			arr_ptr->array = (client*)realloc(arr_ptr->array, arr_ptr->capacity*sizeof(client*));
+		}
+	}
 	arr_ptr->size--;
+}
+
+void deleteFrame(dynamic_array *arr_ptr, Window window){
+	int index = indexClient(arr_ptr, window);
+	deleteClientFromIndex(arr_ptr, index);
+}
+
+
+int getFrame(dynamic_array *arr_ptr, Window window, Window* returnFrame){
+	client client_;
+	for(int i = 0; i < arr_ptr->size; i++){
+		if(getClientFromIndex(arr_ptr, i, &client_) == 1){
+			return -1;
+		}
+		if(client_.window == window){
+			*returnFrame = client_.frame;
+			return i;
+		}
+	}
+	return -1;
+}
+
+int containsClient(dynamic_array *arr_ptr, Window window){
+	Window temp;
+	if(getFrame(arr_ptr, window, &temp) == -1){
+		return 0;
+	}
+	return 1;
+}
+
+int indexClient(dynamic_array *arr_ptr, Window window){
+	Window temp;
+	return getFrame(arr_ptr, window, &temp);
+}
+
+void addClient(dynamic_array *arr_ptr, Window window, Window frame){
+	client temp;
+	temp.window = window;
+	temp.frame = frame; 
+	addClientFromStruct(arr_ptr, temp);
 }

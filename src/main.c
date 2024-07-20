@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include "main.h"
+#include "clients.h"
 
 #include "config.h"
 
@@ -17,8 +18,10 @@ static Bool wm_deteced;
 
 static WindowManager wm;
 
+static dynamic_array* clients_;
+
 int OnXError(Display* display, XErrorEvent* e){
-	printf("%u\n", e->error_code);
+	printf("Error: %u, request_code: %u, %lu\n", e->error_code, e->request_code, e->resourceid);
 	return 0;
 }
 
@@ -36,9 +39,6 @@ void setup(){
 		exit(EXIT_FAILURE);
 	}
 	wm.root = DefaultRootWindow(wm.dsp);
-}
-
-void run(){
 	wm_deteced = false;
 
 	XSetErrorHandler(&OnWMDetected);
@@ -51,6 +51,32 @@ void run(){
 	}
 
 	XSetErrorHandler(&OnXError);
+
+	XGrabServer(wm.dsp);
+
+	Window returned_root, returned_parent;
+	Window* top_level_windows;
+	unsigned int num_top_level_windows;
+
+	if(!XQueryTree(
+			wm.dsp,
+			wm.root,
+			&returned_root,
+			&returned_parent,
+			&top_level_windows,
+			&num_top_level_windows)){return;}
+	if(returned_root != wm.root){return;}
+
+	for(unsigned int i = 0; i<num_top_level_windows; i++){
+		Frame(top_level_windows[i], true);
+	}
+
+	XFree(top_level_windows);
+
+	XUngrabServer(wm.dsp);
+}
+
+void run(){
 	
 	while(1){
 		XEvent e;
@@ -60,27 +86,36 @@ void run(){
 			case CreateNotify:
 				OnCreateNotify(&e.xcreatewindow);
 				break;
+			case DestroyNotify:
+				OnDestroyNotify(&e.xdestroywindow);
+				break;
 			case ConfigureRequest:
 				OnConfigRequest(&e.xconfigurerequest);
 				break;
 			case ConfigureNotify:
 				OnConfigNotify(&e.xconfigure);
+				break;
 			case MapRequest:
 				OnMapRequest(&e.xmaprequest);
 				break;
 			case MapNotify:
 				OnMapNotify(&e.xmap);
 				break;
+			case UnmapNotify:
+				OnUnmapNotify(&e.xunmap);
+				break;
 		}
 	}
 }
 
 int main(){
+	initArray(&clients_);
+
 	setup();
 
 	run();
 
-
+	freeArray(clients_);	
 	XCloseDisplay(wm.dsp);
 	return 0;
 }
@@ -88,6 +123,7 @@ int main(){
 
 void OnCreateNotify(const XCreateWindowEvent* e) {}
 
+void OnDestroyNotify(const XDestroyWindowEvent *e){}
 
 void OnConfigRequest(const XConfigureRequestEvent *e) {
 	XWindowChanges changes;
@@ -106,19 +142,36 @@ void OnConfigRequest(const XConfigureRequestEvent *e) {
 void OnConfigNotify(const XConfigureEvent *e) {}
 
 void OnMapRequest(const XMapRequestEvent *e){
-	Frame(e->window);
+	Frame(e->window, false);
 
 	XMapWindow(wm.dsp, e->window);
 }
 
 void OnMapNotify(const XMapEvent* e){}
 
+void OnUnmapNotify(const XUnmapEvent* e){
+	if(e->event == wm.root){
+		return;
+	}
 
-void Frame(Window w){
+	if(!containsClient(clients_, e->window)){
+		return;
+	}
+	UnFrame(e->window);	
+}
+
+
+void Frame(Window w, Bool before_wm){
 	XWindowAttributes x_w_attrs;
 	XGetWindowAttributes(wm.dsp, w, &x_w_attrs);
+	
+	if(before_wm){
+		if(x_w_attrs.override_redirect || x_w_attrs.map_state != IsViewable){
+			return;
+		}
+	}
 
-	const Window f = XCreateSimpleWindow(
+	const Window frame = XCreateSimpleWindow(
 			wm.dsp,
 			wm.root,
 			x_w_attrs.x,
@@ -130,12 +183,31 @@ void Frame(Window w){
 			BG_COLOR);
 
 	
-	XSelectInput(wm.dsp, f, SubstructureRedirectMask | SubstructureNotifyMask);
-
+	XSelectInput(wm.dsp, frame, SubstructureRedirectMask | SubstructureNotifyMask);	
 	XAddToSaveSet(wm.dsp, w);
 
-	XReparentWindow(wm.dsp, w, f, 0, 0);
+	XReparentWindow(wm.dsp, w, frame, 0, 0);
 
-	XMapWindow(wm.dsp, f);
+	XMapWindow(wm.dsp, frame);
+
+	addClient(clients_, w, frame);
 }
 
+void UnFrame(Window w){
+	Window frame;
+	getFrame(clients_, w, &frame);
+	
+	XUnmapWindow(wm.dsp, frame);
+	XReparentWindow(
+			wm.dsp,
+			w,
+			wm.root,
+			0, 0);
+
+	XRemoveFromSaveSet(wm.dsp, w);
+
+	XDestroyWindow(wm.dsp, frame);
+
+	deleteFrame(clients_, w);
+	
+}
