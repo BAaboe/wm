@@ -1,0 +1,3 @@
+- [x] Basic reparenting function
+- [ ] Add user input to move close windows
+- [ ] Add window decorations 
