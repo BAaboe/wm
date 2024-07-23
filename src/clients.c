@@ -64,7 +64,7 @@ void deleteClientFromIndex(dynamic_array* arr_ptr, int index){
 		if(arr_ptr->capacity > MIN_NUM_CAP){
 			arr_ptr->capacity >>= 1;
 
-			arr_ptr->array = (client*)realloc(arr_ptr->array, arr_ptr->capacity*sizeof(client*));
+			arr_ptr->array = (client*)realloc(arr_ptr->array, arr_ptr->capacity*sizeof(client));
 		}
 	}
 	arr_ptr->size--;
@@ -76,31 +76,40 @@ void deleteFrame(dynamic_array *arr_ptr, Window window){
 }
 
 
-int getFrame(dynamic_array *arr_ptr, Window window, Window* returnFrame){
+int getClient(dynamic_array *arr_ptr, Window window, client* returnClient){
 	client client_;
 	for(int i = 0; i < arr_ptr->size; i++){
 		if(getClientFromIndex(arr_ptr, i, &client_) == 1){
 			return -1;
 		}
 		if(client_.window == window){
-			*returnFrame = client_.frame;
+			*returnClient = client_;
 			return i;
 		}
 	}
 	return -1;
 }
 
-int containsClient(dynamic_array *arr_ptr, Window window){
-	Window temp;
-	if(getFrame(arr_ptr, window, &temp) == -1){
+int setClient(dynamic_array *arr_ptr, Window window, client client_){
+	int index = indexClient(arr_ptr, window);
+	if(index == -1){
+		return -1;
+	}
+	arr_ptr->array[index] = client_;
+	return 0;
+}
+
+Bool containsClient(dynamic_array *arr_ptr, Window window){
+	client temp;
+	if(getClient(arr_ptr, window, &temp) == -1){
 		return 0;
 	}
 	return 1;
 }
 
 int indexClient(dynamic_array *arr_ptr, Window window){
-	Window temp;
-	return getFrame(arr_ptr, window, &temp);
+	client temp;
+	return getClient(arr_ptr, window, &temp);
 }
 
 void addClient(dynamic_array *arr_ptr, Window window, Window frame){
@@ -108,4 +117,9 @@ void addClient(dynamic_array *arr_ptr, Window window, Window frame){
 	temp.window = window;
 	temp.frame = frame; 
 	addClientFromStruct(arr_ptr, temp);
+}
+
+//used to debuging
+void printPos(pos pos_){
+	printf("x: %d, y: %d\n", pos_.x, pos_.y);
 }

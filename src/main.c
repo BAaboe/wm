@@ -1,5 +1,6 @@
 #include <X11/X.h>
 #include <X11/Xlib.h>
+#include <X11/cursorfont.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,11 +9,6 @@
 #include "clients.h"
 
 #include "config.h"
-
-#define true 1
-#define false 0
-
-
 
 static Bool wm_deteced;
 
@@ -27,7 +23,7 @@ int OnXError(Display* display, XErrorEvent* e){
 
 int OnWMDetected(Display* display, XErrorEvent* e){
 	if((int)e->error_code == BadAccess){
-		wm_deteced = true;
+		wm_deteced = True;
 	}
 
 	return 0;
@@ -39,11 +35,11 @@ void setup(){
 		exit(EXIT_FAILURE);
 	}
 	wm.root = DefaultRootWindow(wm.dsp);
-	wm_deteced = false;
+	wm_deteced = False;
 
 	XSetErrorHandler(&OnWMDetected);
 	XSelectInput(wm.dsp, wm.root, SubstructureRedirectMask | SubstructureNotifyMask);
-	XSync(wm.dsp, false);
+	//XSync(wm.dsp, false);
 
 	if(wm_deteced){
 		printf("Error: detected another window manager on display\n");
@@ -52,6 +48,7 @@ void setup(){
 
 	XSetErrorHandler(&OnXError);
 
+	//Reparent and frame exsiting windows
 	XGrabServer(wm.dsp);
 
 	Window returned_root, returned_parent;
@@ -68,20 +65,27 @@ void setup(){
 	if(returned_root != wm.root){return;}
 
 	for(unsigned int i = 0; i<num_top_level_windows; i++){
-		Frame(top_level_windows[i], true);
+		Frame(top_level_windows[i], True);
 	}
 
 	XFree(top_level_windows);
 
 	XUngrabServer(wm.dsp);
+	
 
+	//Displaying cursor
+	Cursor cursor = XCreateFontCursor(wm.dsp, XC_left_ptr);
+	XDefineCursor(wm.dsp, wm.root, cursor);
+	XSync(wm.dsp, 0);
+
+	//Startup script for startup programs
 	system(STARTUP_SCRIPT);
 }
 
 void run(){
 	
+	XEvent e;
 	while(1){
-		XEvent e;
 		XNextEvent(wm.dsp, &e);
 		
 		switch(e.type){
@@ -106,7 +110,17 @@ void run(){
 			case UnmapNotify:
 				OnUnmapNotify(&e.xunmap);
 				break;
+			case ButtonPress:
+				OnButtonPressed(&e.xbutton);
+				break;
+			case MotionNotify:
+				OnMotionNotify(&e.xmotion);
+				break;
+			case KeyPress:
+				printf("keypressed\n");
+				break;
 		}
+
 	}
 }
 
@@ -144,7 +158,7 @@ void OnConfigRequest(const XConfigureRequestEvent *e) {
 void OnConfigNotify(const XConfigureEvent *e) {}
 
 void OnMapRequest(const XMapRequestEvent *e){
-	Frame(e->window, false);
+	Frame(e->window, False);
 
 	XMapWindow(wm.dsp, e->window);
 }
@@ -162,6 +176,47 @@ void OnUnmapNotify(const XUnmapEvent* e){
 	UnFrame(e->window);	
 }
 
+void OnButtonPressed(const XButtonEvent *e) {
+	if(!containsClient(clients_, e->window)){return;}
+
+	client client_, newClient;
+	getClient(clients_, e->window, &client_);
+
+	newClient = client_;
+
+	XWindowAttributes fwa;
+	XGetWindowAttributes(wm.dsp, client_.frame, &fwa);
+
+	pos frame_pos;
+	frame_pos.x = fwa.x;
+	frame_pos.y = fwa.y;
+	printPos(frame_pos);
+
+	pos drage_start_pos;
+	drage_start_pos.x = e->x_root;
+	drage_start_pos.y = e->y_root;
+
+	newClient.drag_start_pos = drage_start_pos;
+	newClient.frame_start_pos = frame_pos;
+
+	setClient(clients_, e->window, newClient);
+}
+
+void OnMotionNotify(const XMotionEvent *e){
+	if(!containsClient(clients_, e->window)){return;}
+	
+	client client_;
+	getClient(clients_, e->window, &client_);
+
+	if(e->state & Button1Mask){
+		pos new_pos;
+		//caluclates the new position of the window by findig out how much it has moved and adds that to the last position
+		new_pos.x = client_.frame_start_pos.x+(e->x_root-client_.drag_start_pos.x);
+		new_pos.y = client_.frame_start_pos.y+(e->y_root-client_.drag_start_pos.y);
+
+		XMoveWindow(wm.dsp, client_.frame, new_pos.x, new_pos.y);
+	}
+}
 
 void Frame(Window w, Bool before_wm){
 	XWindowAttributes x_w_attrs;
@@ -193,13 +248,16 @@ void Frame(Window w, Bool before_wm){
 	XMapWindow(wm.dsp, frame);
 
 	addClient(clients_, w, frame);
+
+	XGrabButton(wm.dsp, Button1, Mod4Mask, w, False, ButtonPress|ButtonMotionMask, GrabModeAsync, GrabModeAsync, None, None);
+
 }
 
 void UnFrame(Window w){
-	Window frame;
-	getFrame(clients_, w, &frame);
+	client client_;
+	getClient(clients_, w, &client_);
 	
-	XUnmapWindow(wm.dsp, frame);
+	XUnmapWindow(wm.dsp, client_.frame);
 	XReparentWindow(
 			wm.dsp,
 			w,
@@ -208,7 +266,7 @@ void UnFrame(Window w){
 
 	XRemoveFromSaveSet(wm.dsp, w);
 
-	XDestroyWindow(wm.dsp, frame);
+	XDestroyWindow(wm.dsp, client_.frame);
 
 	deleteFrame(clients_, w);
 	
