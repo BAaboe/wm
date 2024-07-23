@@ -6,7 +6,8 @@
 typedef struct {
 	Window frame;
 	Window window;
-	Bool ok;
+	int start_x;
+	int start_y;
 }client;
 
 typedef struct {

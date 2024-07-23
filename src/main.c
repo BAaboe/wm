@@ -10,11 +10,6 @@
 
 #include "config.h"
 
-#define true 1
-#define false 0
-
-
-
 static Bool wm_deteced;
 
 static WindowManager wm;
@@ -28,7 +23,7 @@ int OnXError(Display* display, XErrorEvent* e){
 
 int OnWMDetected(Display* display, XErrorEvent* e){
 	if((int)e->error_code == BadAccess){
-		wm_deteced = true;
+		wm_deteced = True;
 	}
 
 	return 0;
@@ -40,7 +35,7 @@ void setup(){
 		exit(EXIT_FAILURE);
 	}
 	wm.root = DefaultRootWindow(wm.dsp);
-	wm_deteced = false;
+	wm_deteced = False;
 
 	XSetErrorHandler(&OnWMDetected);
 	XSelectInput(wm.dsp, wm.root, SubstructureRedirectMask | SubstructureNotifyMask);
@@ -54,35 +49,29 @@ void setup(){
 	XSetErrorHandler(&OnXError);
 
 	//Reparent and frame exsiting windows
-	//XGrabServer(wm.dsp);
+	XGrabServer(wm.dsp);
 
-	//Window returned_root, returned_parent;
-	//Window* top_level_windows;
-	//unsigned int num_top_level_windows;
+	Window returned_root, returned_parent;
+	Window* top_level_windows;
+	unsigned int num_top_level_windows;
 
-	//if(!XQueryTree(
-	//		wm.dsp,
-	//		wm.root,
-	//		&returned_root,
-	//		&returned_parent,
-	//		&top_level_windows,
-	//		&num_top_level_windows)){return;}
-	//if(returned_root != wm.root){return;}
+	if(!XQueryTree(
+			wm.dsp,
+			wm.root,
+			&returned_root,
+			&returned_parent,
+			&top_level_windows,
+			&num_top_level_windows)){return;}
+	if(returned_root != wm.root){return;}
 
-	//for(unsigned int i = 0; i<num_top_level_windows; i++){
-	//	Frame(top_level_windows[i], true);
-	//}
+	for(unsigned int i = 0; i<num_top_level_windows; i++){
+		Frame(top_level_windows[i], True);
+	}
 
-	//XFree(top_level_windows);
+	XFree(top_level_windows);
 
-	//XUngrabServer(wm.dsp);
+	XUngrabServer(wm.dsp);
 	
-	KeySym ks = XStringToKeysym("a");
-	KeyCode kc = XKeysymToKeycode(wm.dsp, ks);
-
-	int code = XGrabKey(wm.dsp, kc, ShiftMask, wm.root, 0,  GrabModeAsync, GrabModeAsync);
-	printf("%d\n", code==AlreadyGrabbed);
-	XSync(wm.dsp, 0);
 
 	//Displaying cursor
 	Cursor cursor = XCreateFontCursor(wm.dsp, XC_left_ptr);
@@ -90,7 +79,7 @@ void setup(){
 	XSync(wm.dsp, 0);
 
 	//Startup script for startup programs
-	//system(STARTUP_SCRIPT);
+	system(STARTUP_SCRIPT);
 }
 
 void run(){
@@ -123,6 +112,9 @@ void run(){
 				break;
 			case ButtonPress:
 				OnButtonPressed(&e.xbutton);
+				break;
+			case MotionNotify:
+				OnMotionNotify(&e.xmotion);
 				break;
 			case KeyPress:
 				printf("keypressed\n");
@@ -166,7 +158,7 @@ void OnConfigRequest(const XConfigureRequestEvent *e) {
 void OnConfigNotify(const XConfigureEvent *e) {}
 
 void OnMapRequest(const XMapRequestEvent *e){
-	Frame(e->window, false);
+	Frame(e->window, False);
 
 	XMapWindow(wm.dsp, e->window);
 }
@@ -184,8 +176,19 @@ void OnUnmapNotify(const XUnmapEvent* e){
 	UnFrame(e->window);	
 }
 
-void OnButtonPressed(const XButtonPressedEvent *e) {
-	printf("ButtonPressed\n");
+void OnButtonPressed(const XButtonEvent *e) {
+	if((e->state &(Mod4Mask)) == Mod4Mask){
+		printf("Button pressed\n");
+	}
+}
+
+void OnMotionNotify(const XMotionEvent *e){
+	Window frame;
+	getFrame(clients_, e->window, &frame);	
+	if(e->state & Button1Mask){
+		printf("x: %d\ny: %d\n", e->x, e->y);
+		XMoveWindow(wm.dsp, frame, e->x_root, e->y_root);
+	}
 }
 
 void Frame(Window w, Bool before_wm){
@@ -218,6 +221,8 @@ void Frame(Window w, Bool before_wm){
 	XMapWindow(wm.dsp, frame);
 
 	addClient(clients_, w, frame);
+
+	XGrabButton(wm.dsp, Button1, Mod4Mask, w, False, ButtonPress|ButtonMotionMask, GrabModeAsync, GrabModeAsync, None, None);
 
 }
 
