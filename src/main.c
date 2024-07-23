@@ -212,6 +212,18 @@ void OnMotionNotify(const XMotionEvent *e){
 		//caluclates the new position of the window by findig out how much it has moved and adds that to the last position
 		new_pos.x = client_.frame_start_pos.x+(e->x_root-client_.drag_start_pos.x);
 		new_pos.y = client_.frame_start_pos.y+(e->y_root-client_.drag_start_pos.y);
+		
+		//clips to the edge of screen
+		XWindowAttributes fwa, rwa;
+		XGetWindowAttributes(wm.dsp, client_.frame, &fwa);
+		XGetWindowAttributes(wm.dsp, wm.root, &rwa);
+
+		if(new_pos.x+fwa.width >= rwa.width && new_pos.x+fwa.width <= rwa.width+CLIPING_LIMIT){new_pos.x = rwa.width-fwa.width;}
+		if(new_pos.y+fwa.height >= rwa.height && new_pos.y+fwa.height <= rwa.height+CLIPING_LIMIT){new_pos.y = rwa.height-fwa.height;}
+
+		if(new_pos.x <= 0 && new_pos.x >= -CLIPING_LIMIT){new_pos.x = 0;}
+		if(new_pos.y <= 0 && new_pos.y >= -CLIPING_LIMIT){new_pos.y = 0;}
+
 
 		XMoveWindow(wm.dsp, client_.frame, new_pos.x, new_pos.y);
 	}
