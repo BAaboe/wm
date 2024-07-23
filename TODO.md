@@ -1,3 +1,4 @@
 - [x] Basic reparenting function
-- [ ] Add user input to move close windows
+- [ ] Add user input to move and close windows
+- [ ] Add tilling
 - [ ] Add window decorations 
