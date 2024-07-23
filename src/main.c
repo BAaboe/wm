@@ -177,17 +177,44 @@ void OnUnmapNotify(const XUnmapEvent* e){
 }
 
 void OnButtonPressed(const XButtonEvent *e) {
-	if((e->state &(Mod4Mask)) == Mod4Mask){
-		printf("Button pressed\n");
-	}
+	if(!containsClient(clients_, e->window)){return;}
+
+	client client_, newClient;
+	getClient(clients_, e->window, &client_);
+
+	newClient = client_;
+
+	XWindowAttributes fwa;
+	XGetWindowAttributes(wm.dsp, client_.frame, &fwa);
+
+	pos frame_pos;
+	frame_pos.x = fwa.x;
+	frame_pos.y = fwa.y;
+	printPos(frame_pos);
+
+	pos drage_start_pos;
+	drage_start_pos.x = e->x_root;
+	drage_start_pos.y = e->y_root;
+
+	newClient.drag_start_pos = drage_start_pos;
+	newClient.frame_start_pos = frame_pos;
+
+	setClient(clients_, e->window, newClient);
 }
 
 void OnMotionNotify(const XMotionEvent *e){
-	Window frame;
-	getFrame(clients_, e->window, &frame);	
+	if(!containsClient(clients_, e->window)){return;}
+	
+	client client_;
+	getClient(clients_, e->window, &client_);
+
 	if(e->state & Button1Mask){
-		printf("x: %d\ny: %d\n", e->x, e->y);
-		XMoveWindow(wm.dsp, frame, e->x_root, e->y_root);
+		pos new_pos;
+		//caluclates the new position of the window by findig out how much it has moved and adds that to the last position
+		new_pos.x = client_.frame_start_pos.x+(e->x_root-client_.drag_start_pos.x);
+		new_pos.y = client_.frame_start_pos.y+(e->y_root-client_.drag_start_pos.y);
+
+		XMoveWindow(wm.dsp, client_.frame, new_pos.x, new_pos.y);
 	}
 }
 
@@ -227,10 +254,10 @@ void Frame(Window w, Bool before_wm){
 }
 
 void UnFrame(Window w){
-	Window frame;
-	getFrame(clients_, w, &frame);
+	client client_;
+	getClient(clients_, w, &client_);
 	
-	XUnmapWindow(wm.dsp, frame);
+	XUnmapWindow(wm.dsp, client_.frame);
 	XReparentWindow(
 			wm.dsp,
 			w,
@@ -239,7 +266,7 @@ void UnFrame(Window w){
 
 	XRemoveFromSaveSet(wm.dsp, w);
 
-	XDestroyWindow(wm.dsp, frame);
+	XDestroyWindow(wm.dsp, client_.frame);
 
 	deleteFrame(clients_, w);
 	
