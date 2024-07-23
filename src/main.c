@@ -190,7 +190,6 @@ void OnButtonPressed(const XButtonEvent *e) {
 	pos frame_pos;
 	frame_pos.x = fwa.x;
 	frame_pos.y = fwa.y;
-	printPos(frame_pos);
 
 	pos drage_start_pos;
 	drage_start_pos.x = e->x_root;
