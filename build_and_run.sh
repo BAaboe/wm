@@ -21,5 +21,5 @@ xinit ./xinitrc -- \
     "$XEPHYR" \
         :100 \
         -ac \
-        -screen 800x600\
-        -host-cursor
+        -screen 1920x1080\
+		-host-cursor

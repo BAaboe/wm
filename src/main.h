@@ -26,6 +26,7 @@ void OnUnmapNotify(const XUnmapEvent* e);
 
 void OnButtonPressed(const XButtonEvent* e);
 void OnMotionNotify(const XMotionEvent* e);
+void OnButtonRelease(const XButtonEvent* e);
 
 void Frame(Window w, Bool before_wm);
 void UnFrame(Window w);
