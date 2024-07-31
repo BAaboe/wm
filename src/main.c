@@ -260,7 +260,7 @@ void Frame(Window w, Bool before_wm){
 
 	addClient(clients_, w, frame);
 
-	XGrabButton(wm.dsp, Button1, Mod4Mask, w, False, ButtonPress|ButtonMotionMask, GrabModeAsync, GrabModeAsync, None, None);
+	XGrabButton(wm.dsp, Button1, ShiftMask, w, False, ButtonPress|ButtonMotionMask, GrabModeAsync, GrabModeAsync, None, None);
 
 }
 
